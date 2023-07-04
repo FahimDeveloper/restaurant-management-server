@@ -1,0 +1,42 @@
+[
+    {
+        "table_name": "A Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "B Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "C Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "D Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "E Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "F Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "G Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "H Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "I Table",
+        "booking_list": []
+    },
+    {
+        "table_name": "J Table",
+        "booking_list": []
+    }
+]

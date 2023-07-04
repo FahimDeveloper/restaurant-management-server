@@ -46,6 +46,7 @@ async function run() {
         await client.connect();
         const menuCollection = client.db('restaurantManagement').collection('menuCollection');
         const usersCollection = client.db('restaurantManagement').collection('usersCollection');
+        const tableWithBookingCollection = client.db('restaurantManagement').collection('tableWithBookingCollection');
         //All Get Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
@@ -63,6 +64,12 @@ async function run() {
             const email = req.params.email;
             const result = await usersCollection.findOne({ email: email });
             res.send(result);
+        });
+        //Get Table information by post
+        app.post('/tableInfo', async (req, res) => {
+            const bookingTime = req.body
+            const result = await tableWithBookingCollection.find({ booking_list: { $not: { $elemMatch: { time: bookingTime.time } } } }, { "booking_list": { $elemMatch: { date: bookingTime.date } } }).toArray();
+            res.send(result)
         })
         //All post Api
         //post new user on server

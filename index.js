@@ -9,6 +9,21 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(express.json());
 app.use(cors());
+//verify jwt access middleware
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: 'unauthorized access' })
+    }
+    const token = authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN, (error, decoded) => {
+        if (error) {
+            return res.status(401).send({ error: true, message: 'unauthorized access' })
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
 
 app.get('/', async (req, res) => {
     res.send('Restaurant Management Server running')
@@ -42,6 +57,12 @@ async function run() {
             const userEmail = req.body;
             const token = jwt.sign(userEmail, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
             res.send(token);
+        });
+        //Get userRole form user collection
+        app.get('/userRole/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const result = await usersCollection.findOne({ email: email });
+            res.send(result);
         })
         //All post Api
         //post new user on server

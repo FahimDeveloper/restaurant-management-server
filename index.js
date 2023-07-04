@@ -29,10 +29,22 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
         const menuCollection = client.db('restaurantManagement').collection('menuCollection');
+        const usersCollection = client.db('restaurantManagement').collection('usersCollection');
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
             const result = await menuCollection.find().toArray();
             res.send(result)
+        });
+        //post new user on server
+        app.post('/newUser', async (req, res) => {
+            const userData = req.body;
+            const findUser = await usersCollection.findOne({ email: userData.email });
+            if (findUser) {
+                res.send('The user already have')
+            } else {
+                const result = await usersCollection.insertOne(userData);
+                res.send(result)
+            }
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });

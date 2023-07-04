@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 const app = express();
@@ -30,11 +31,19 @@ async function run() {
         await client.connect();
         const menuCollection = client.db('restaurantManagement').collection('menuCollection');
         const usersCollection = client.db('restaurantManagement').collection('usersCollection');
+        //All Get Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
             const result = await menuCollection.find().toArray();
             res.send(result)
         });
+        //Get jwt token by post
+        app.post('/jwt', async (req, res) => {
+            const userEmail = req.body;
+            const token = jwt.sign(userEmail, process.env.ACCESS_TOKEN, { expiresIn: '1h' });
+            res.send(token);
+        })
+        //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
             const userData = req.body;

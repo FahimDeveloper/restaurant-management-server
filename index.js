@@ -110,9 +110,17 @@ async function run() {
                 res.send(result);
             }
         });
+        app.post('/placedOrder/:email', verifyJWT, async (req, res) => {
+            const result = await orderCollection.insertOne(req.body);
+            res.send(result)
+        })
         //All delete action api
         app.delete('/removeCartItem/:email/:id', verifyJWT, async (req, res) => {
             const result = await cartCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+            res.send(result)
+        });
+        app.delete('/removeAllCartItem/:email', verifyJWT, async (req, res) => {
+            const result = await cartCollection.deleteMany({ email: req.params.email });
             res.send(result)
         })
         // Send a ping to confirm a successful connection

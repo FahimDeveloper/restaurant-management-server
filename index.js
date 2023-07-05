@@ -82,6 +82,29 @@ async function run() {
             const result = await orderCollection.find({ userEmail: req.params.email }).toArray();
             res.send(result);
         });
+        app.get('/tableReservationInfo/:email', verifyJWT, async (req, res) => {
+            const userEmail = req.params.email;
+            const userBookings = await tableWithBookingCollection.aggregate([
+                {
+                    $match: {
+                        "booking_list.email": userEmail
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        booking_list: {
+                            $filter: {
+                                input: "$booking_list",
+                                as: "booking",
+                                cond: { $eq: ["$$booking.email", userEmail] }
+                            }
+                        }
+                    }
+                }
+            ]).toArray();
+            res.send(userBookings);
+        })
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {

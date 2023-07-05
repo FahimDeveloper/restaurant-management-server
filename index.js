@@ -48,6 +48,7 @@ async function run() {
         const usersCollection = client.db('restaurantManagement').collection('usersCollection');
         const tableWithBookingCollection = client.db('restaurantManagement').collection('tableWithBookingCollection');
         const cartCollection = client.db('restaurantManagement').collection('cartCollection');
+        const orderCollection = client.db('restaurantManagement').collection('orderCollection');
         //All Get colleciton Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
@@ -108,6 +109,11 @@ async function run() {
                 const result = await cartCollection.insertOne(cartData);
                 res.send(result);
             }
+        });
+        //All delete action api
+        app.delete('/removeCartItem/:email/:id', verifyJWT, async (req, res) => {
+            const result = await cartCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+            res.send(result)
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });

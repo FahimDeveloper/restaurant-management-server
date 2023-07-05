@@ -47,7 +47,8 @@ async function run() {
         const menuCollection = client.db('restaurantManagement').collection('menuCollection');
         const usersCollection = client.db('restaurantManagement').collection('usersCollection');
         const tableWithBookingCollection = client.db('restaurantManagement').collection('tableWithBookingCollection');
-        //All Get Api
+        const cartCollection = client.db('restaurantManagement').collection('cartCollection');
+        //All Get colleciton Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
             const result = await menuCollection.find().toArray();
@@ -66,9 +67,14 @@ async function run() {
             res.send(result);
         });
         //Get Table information by post
-        app.post('/tableInfo', async (req, res) => {
+        app.post('/tableInfo', verifyJWT, async (req, res) => {
             const bookingTime = req.body
             const result = await tableWithBookingCollection.find({ booking_list: { $not: { $elemMatch: { time: bookingTime.time } } } }, { "booking_list": { $elemMatch: { date: bookingTime.date } } }).toArray();
+            res.send(result)
+        });
+        //get cart item
+        app.get('/cartData/:email', verifyJWT, async (req, res) => {
+            const result = await cartCollection.find({ email: req.params.email }).toArray();
             res.send(result)
         })
         //All post Api
@@ -84,12 +90,24 @@ async function run() {
             }
         })
         //Post table booking
-        app.post('/reservedTable/:email/:id', async (req, res) => {
+        app.post('/reservedTable/:email/:id', verifyJWT, async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) };
             const bookingData = req.body
             const options = { upsert: true }
             const result = await tableWithBookingCollection.updateOne(filter, { $push: { "booking_list": bookingData } }, options)
             res.send(result)
+        });
+        //post cart item
+        app.post('/postCartItem/:email', verifyJWT, async (req, res) => {
+            const cartData = req.body;
+            const menuId = cartData.menuItemId;
+            const findMenuItem = await cartCollection.findOne({ email: req.params.email, menuItemId: menuId })
+            if (findMenuItem) {
+                res.send("Already added")
+            } else {
+                const result = await cartCollection.insertOne(cartData);
+                res.send(result);
+            }
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });

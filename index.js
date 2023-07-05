@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 var jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -82,6 +82,14 @@ async function run() {
                 const result = await usersCollection.insertOne(userData);
                 res.send(result)
             }
+        })
+        //Post table booking
+        app.post('/reservedTable/:email/:id', async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) };
+            const bookingData = req.body
+            const options = { upsert: true }
+            const result = await tableWithBookingCollection.updateOne(filter, { $push: { "booking_list": bookingData } }, options)
+            res.send(result)
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });

@@ -77,7 +77,11 @@ async function run() {
         app.get('/cartData/:email', verifyJWT, async (req, res) => {
             const result = await cartCollection.find({ email: req.params.email }).toArray();
             res.send(result)
-        })
+        });
+        app.get('/orderedInfo/:email', async (req, res) => {
+            const result = await orderCollection.find({ userEmail: req.params.email }).toArray();
+            res.send(result);
+        });
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
@@ -121,6 +125,10 @@ async function run() {
         });
         app.delete('/removeAllCartItem/:email', verifyJWT, async (req, res) => {
             const result = await cartCollection.deleteMany({ email: req.params.email });
+            res.send(result)
+        });
+        app.delete('/cancelOrder/:email/:id', verifyJWT, async (req, res) => {
+            const result = await orderCollection.deleteOne({ userEmail: req.params.email, _id: new ObjectId(req.params.id) });
             res.send(result)
         })
         // Send a ping to confirm a successful connection

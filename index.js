@@ -123,6 +123,10 @@ async function run() {
         app.get('/staffCollection/:email', verifyJWT, async (req, res) => {
             const result = await staffCollection.find().toArray();
             res.send(result);
+        });
+        app.get('/singleStaffInfo/:email/:id', async (req, res) => {
+            const result = await staffCollection.findOne({ _id: new ObjectId(req.params.id) });
+            res.send(result)
         })
         //All post Api
         //post new user on server
@@ -184,6 +188,10 @@ async function run() {
         app.delete("/deleteMenuItem/:email/:id", verifyJWT, async (req, res) => {
             const result = await menuCollection.deleteOne({ _id: new ObjectId(req.params.id) });
             res.send(result)
+        });
+        app.delete('/deleteStaff/:email/:id', verifyJWT, async (req, res) => {
+            const result = await staffCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+            res.send(result);
         })
         //All update api
         app.put("/updateMenuItem/:email/:id", verifyJWT, async (req, res) => {
@@ -206,6 +214,17 @@ async function run() {
                 }
             }
             const result = await orderCollection.updateOne(filter, updateDoc, options);
+            res.send(result)
+        });
+        app.put('/updateStaffInfo/:email/:id', verifyJWT, async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    ...req.body
+                }
+            }
+            const result = await staffCollection.updateOne(filter, updateDoc, options);
             res.send(result)
         })
         // Send a ping to confirm a successful connection

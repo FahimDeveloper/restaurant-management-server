@@ -140,6 +140,10 @@ async function run() {
         app.post('/placedOrder/:email', verifyJWT, async (req, res) => {
             const result = await orderCollection.insertOne(req.body);
             res.send(result)
+        });
+        app.post('/addMenuItem/:email', verifyJWT, async (req, res) => {
+            const result = await menuCollection.insertOne(req.body);
+            res.send(result)
         })
         //All delete action api
         app.delete('/removeCartItem/:email/:id', verifyJWT, async (req, res) => {

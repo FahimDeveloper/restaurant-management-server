@@ -79,7 +79,7 @@ async function run() {
             res.send(result)
         });
         app.get('/orderedInfo/:email', async (req, res) => {
-            const result = await orderCollection.find({ userEmail: req.params.email }).toArray();
+            const result = await orderCollection.find({ userEmail: req.params.email }).sort({ date: -1 }).toArray();
             res.send(result);
         });
         app.get('/tableReservationInfo/:email', verifyJWT, async (req, res) => {
@@ -105,10 +105,20 @@ async function run() {
             ]).toArray();
             res.send(userBookings);
         });
-        app.get('/singleMenuItem/:email/:id', async (req, res) => {
+        app.get('/singleMenuItem/:email/:id', verifyJWT, async (req, res) => {
             const result = await menuCollection.findOne({ _id: new ObjectId(req.params.id) });
             res.send(result);
-        })
+        });
+        app.get('/allOrderCollection/:email/', verifyJWT, async (req, res) => {
+            const result = await orderCollection.find().toArray();
+            res.send(result);
+        });
+        app.get("/viewOrderInfo/:email/:id", verifyJWT, async (req, res) => {
+            const findOrder = await orderCollection.findOne({ _id: new ObjectId(req.params.id) });
+            const query = { _id: { $in: findOrder.orderedItems.map(id => new ObjectId(id)) } }
+            const result = await menuCollection.find(query).toArray();
+            res.send(result)
+        });
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
@@ -162,12 +172,12 @@ async function run() {
             const result = await orderCollection.deleteOne({ userEmail: req.params.email, _id: new ObjectId(req.params.id) });
             res.send(result)
         });
-        app.delete("/deleteMenuItem/:email/:id", async (req, res) => {
+        app.delete("/deleteMenuItem/:email/:id", verifyJWT, async (req, res) => {
             const result = await menuCollection.deleteOne({ _id: new ObjectId(req.params.id) });
             res.send(result)
         })
         //All update api
-        app.put("/updateMenuItem/:email/:id", async (req, res) => {
+        app.put("/updateMenuItem/:email/:id", verifyJWT, async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) }
             const options = { upsert: true };
             const updateDoc = {
@@ -176,6 +186,17 @@ async function run() {
                 }
             }
             const result = await menuCollection.updateOne(filter, updateDoc, options);
+            res.send(result)
+        });
+        app.put('/changeStatus/:email/:id', verifyJWT, async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    status: req.body.status
+                }
+            }
+            const result = await orderCollection.updateOne(filter, updateDoc, options);
             res.send(result)
         })
         // Send a ping to confirm a successful connection

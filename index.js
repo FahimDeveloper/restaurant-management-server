@@ -52,7 +52,7 @@ async function run() {
         //All Get colleciton Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
-            const result = await menuCollection.find().toArray();
+            const result = await menuCollection.find().sort({ date: -1 }).toArray();
             res.send(result)
         });
         //Get jwt token by post
@@ -162,6 +162,10 @@ async function run() {
             const result = await orderCollection.deleteOne({ userEmail: req.params.email, _id: new ObjectId(req.params.id) });
             res.send(result)
         });
+        app.delete("/deleteMenuItem/:email/:id", async (req, res) => {
+            const result = await menuCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+            res.send(result)
+        })
         //All update api
         app.put("/updateMenuItem/:email/:id", async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) }

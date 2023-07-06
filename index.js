@@ -104,6 +104,10 @@ async function run() {
                 }
             ]).toArray();
             res.send(userBookings);
+        });
+        app.get('/singleMenuItem/:email/:id', async (req, res) => {
+            const result = await menuCollection.findOne({ _id: new ObjectId(req.params.id) });
+            res.send(result);
         })
         //All post Api
         //post new user on server
@@ -156,6 +160,18 @@ async function run() {
         });
         app.delete('/cancelOrder/:email/:id', verifyJWT, async (req, res) => {
             const result = await orderCollection.deleteOne({ userEmail: req.params.email, _id: new ObjectId(req.params.id) });
+            res.send(result)
+        });
+        //All update api
+        app.put("/updateMenuItem/:email/:id", async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    ...req.body
+                }
+            }
+            const result = await menuCollection.updateOne(filter, updateDoc, options);
             res.send(result)
         })
         // Send a ping to confirm a successful connection

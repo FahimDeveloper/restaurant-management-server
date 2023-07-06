@@ -49,6 +49,7 @@ async function run() {
         const tableWithBookingCollection = client.db('restaurantManagement').collection('tableWithBookingCollection');
         const cartCollection = client.db('restaurantManagement').collection('cartCollection');
         const orderCollection = client.db('restaurantManagement').collection('orderCollection');
+        const staffCollection = client.db('restaurantManagement').collection('staffCollection');
         //All Get colleciton Api
         //Get All menu collection
         app.get('/menuCollection', async (req, res) => {
@@ -119,6 +120,10 @@ async function run() {
             const result = await menuCollection.find(query).toArray();
             res.send(result)
         });
+        app.get('/staffCollection/:email', verifyJWT, async (req, res) => {
+            const result = await staffCollection.find().toArray();
+            res.send(result);
+        })
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
@@ -158,6 +163,10 @@ async function run() {
         app.post('/addMenuItem/:email', verifyJWT, async (req, res) => {
             const result = await menuCollection.insertOne(req.body);
             res.send(result)
+        });
+        app.post('/addRestaurantStaff/:email', verifyJWT, async (req, res) => {
+            const result = await staffCollection.insertOne(req.body);
+            res.send(result);
         })
         //All delete action api
         app.delete('/removeCartItem/:email/:id', verifyJWT, async (req, res) => {

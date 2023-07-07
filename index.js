@@ -226,6 +226,36 @@ async function run() {
             }
             const result = await staffCollection.updateOne(filter, updateDoc, options);
             res.send(result)
+        });
+        app.put('/quantityPlus/:email/:id', verifyJWT, async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) }
+            const findItem = await cartCollection.findOne(filter);
+            if (findItem && findItem.quantity === 5) {
+                return res.send('Quantity max')
+            }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    quantity: req.body.quantity + 1
+                }
+            }
+            const result = await cartCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        });
+        app.put('/quantityMinus/:email/:id', verifyJWT, async (req, res) => {
+            const filter = { _id: new ObjectId(req.params.id) }
+            const findItem = await cartCollection.findOne(filter);
+            if (findItem && findItem.quantity === 1) {
+                return res.send('Quantity min')
+            }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    quantity: req.body.quantity - 1
+                }
+            }
+            const result = await cartCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });

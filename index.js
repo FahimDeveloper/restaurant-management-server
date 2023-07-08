@@ -43,7 +43,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
         const menuCollection = client.db('restaurantManagement').collection('menuCollection');
         const usersCollection = client.db('restaurantManagement').collection('usersCollection');
         const tableWithBookingCollection = client.db('restaurantManagement').collection('tableWithBookingCollection');
@@ -211,32 +211,33 @@ async function run() {
                     $addFields: {
                         menuItemsObjectIds: {
                             $map: {
-                                input: '$orderedItems',
-                                as: 'itemId',
-                                in: { $toObjectId: '$$itemId' }
+                                input: "$orderedItems",
+                                as: "itemId",
+                                in: { $toObjectId: "$$itemId" }
                             }
                         }
                     }
                 },
                 {
                     $lookup: {
-                        from: 'menuCollection',
-                        localField: 'menuItemsObjectIds',
-                        foreignField: '_id',
-                        as: 'menuItemsData'
+                        from: "menuCollection",
+                        localField: "menuItemsObjectIds",
+                        foreignField: "_id",
+                        as: "menuItemsData"
                     }
                 },
                 {
-                    $unwind: '$menuItemsData'
+                    $unwind: "$menuItemsData"
                 },
                 {
                     $group: {
                         _id: {
-                            item: '$menuItemsData.name',
-                            category: '$menuItemsData.category'
+                            item: "$menuItemsData.name",
+                            category: "$menuItemsData.category"
                         },
                         count: { $sum: 1 },
-                        total: { $sum: '$menuItemsData.price' }
+                        total: { $sum: "$menuItemsData.price" },
+                        full_dish: { $first: "$menuItemsData" } // Add this line
                     }
                 },
                 {
@@ -247,19 +248,29 @@ async function run() {
                 },
                 {
                     $project: {
-                        item: '$_id.item',
-                        category: '$_id.category',
+                        item: "$_id.item",
+                        category: "$_id.category",
                         count: 1,
-                        total: { $round: ['$total', 2] },
+                        total: { $round: ["$total", 2] },
+                        full_dish: 1, // Include full_dish field
                         _id: 0
                     }
                 }
             ];
-
             const result1 = await orderCollection.aggregate(pipeline).toArray();
             const result2 = await orderCollection.aggregate(pipeline2).toArray();
             res.send({ orderStates: result1, bestDish: result2 });
         });
+        app.get('/bestDish/:dishId', async (req, res) => {
+            const result = await menuCollection.findOne({ _id: new ObjectId(req.params.dishId) })
+            res.send(result);
+        });
+        app.get('/countOfUsersAndStaffs/:email', verifyJWT, async (req, res) => {
+            const countUsers = await usersCollection.countDocuments();
+            const countStaffs = await staffCollection.countDocuments();
+            res.send({ countUsers, countStaffs })
+            console.log({ countUsers, countStaffs })
+        })
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
@@ -271,7 +282,7 @@ async function run() {
                 const result = await usersCollection.insertOne(userData);
                 res.send(result)
             }
-        })
+        });
         //Post table booking
         app.post('/reservedTable/:email/:id', verifyJWT, async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) };
@@ -407,8 +418,8 @@ async function run() {
             res.send(result);
         })
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        // await client.db("admin").command({ ping: 1 });
+        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();

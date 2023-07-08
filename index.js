@@ -71,7 +71,12 @@ async function run() {
         //Get Table information by post
         app.post('/tableInfo', verifyJWT, async (req, res) => {
             const bookingTime = req.body
-            const result = await tableWithBookingCollection.find({ booking_list: { $not: { $elemMatch: { time: bookingTime.time } } } }, { "booking_list": { $elemMatch: { date: bookingTime.date } } }).toArray();
+            const result = await tableWithBookingCollection.find({
+                $or: [
+                    { booking_list: { $not: { $elemMatch: { reservationDate: bookingTime.date } } } },
+                    { booking_list: { $not: { $elemMatch: { time: bookingTime.time } } } }
+                ]
+            }).toArray();
             res.send(result)
         });
         //get cart item
@@ -92,20 +97,53 @@ async function run() {
                     }
                 },
                 {
+                    $unwind: "$booking_list"
+                },
+                {
+                    $match: {
+                        "booking_list.email": userEmail
+                    }
+                },
+                {
                     $project: {
                         _id: 0,
-                        booking_list: {
-                            $filter: {
-                                input: "$booking_list",
-                                as: "booking",
-                                cond: { $eq: ["$$booking.email", userEmail] }
-                            }
-                        }
+                        booking_list: 1
                     }
                 }
             ]).toArray();
             res.send(userBookings);
         });
+        app.get('/tableReservationInfoForAdmin/:email', verifyJWT, async (req, res) => {
+            const result = await tableWithBookingCollection.aggregate([
+                {
+                    $project: {
+                        table_name: 1,
+                        bookingList: "$booking_list"
+                    }
+                },
+                {
+                    $unwind: "$bookingList"
+                },
+                {
+                    $project: {
+                        table_name: 1,
+                        _id: "$bookingList._id",
+                        reservationDate: "$bookingList.reservationDate",
+                        bookingDate: "$bookingList.bookingDate",
+                        guest: "$bookingList.person",
+                        phone: '$bookingList.phone',
+                        time: "$bookingList.time",
+                        name: "$bookingList.name",
+                        email: "$bookingList.email",
+                        table_id: "$bookingList.table_id",
+                        table_name: "$bookingList.table_name",
+                        tableImage: "$bookingList.table_name",
+                        status: "$bookingList.status",
+                    }
+                }
+            ]).toArray();
+            res.send(result)
+        })
         app.get('/singleMenuItem/:email/:id', verifyJWT, async (req, res) => {
             const result = await menuCollection.findOne({ _id: new ObjectId(req.params.id) });
             res.send(result);
@@ -127,7 +165,101 @@ async function run() {
         app.get('/singleStaffInfo/:email/:id', async (req, res) => {
             const result = await staffCollection.findOne({ _id: new ObjectId(req.params.id) });
             res.send(result)
-        })
+        });
+        app.get('/orderStates/:email', verifyJWT, async (req, res) => {
+            const pipeline = [
+                {
+                    $addFields: {
+                        menuItemsObjectIds: {
+                            $map: {
+                                input: '$orderedItems',
+                                as: 'itemId',
+                                in: { $toObjectId: '$$itemId' }
+                            }
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'menuCollection',
+                        localField: 'menuItemsObjectIds',
+                        foreignField: '_id',
+                        as: 'menuItemsData'
+                    }
+                },
+                {
+                    $unwind: '$menuItemsData'
+                },
+                {
+                    $group: {
+                        _id: '$menuItemsData.category',
+                        count: { $sum: 1 },
+                        total: { $sum: '$menuItemsData.price' }
+                    }
+                },
+                {
+                    $project: {
+                        category: '$_id',
+                        count: 1,
+                        total: { $round: ['$total', 2] },
+                        _id: 0
+                    }
+                }
+            ];
+            const pipeline2 = [
+                {
+                    $addFields: {
+                        menuItemsObjectIds: {
+                            $map: {
+                                input: '$orderedItems',
+                                as: 'itemId',
+                                in: { $toObjectId: '$$itemId' }
+                            }
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'menuCollection',
+                        localField: 'menuItemsObjectIds',
+                        foreignField: '_id',
+                        as: 'menuItemsData'
+                    }
+                },
+                {
+                    $unwind: '$menuItemsData'
+                },
+                {
+                    $group: {
+                        _id: {
+                            item: '$menuItemsData.name',
+                            category: '$menuItemsData.category'
+                        },
+                        count: { $sum: 1 },
+                        total: { $sum: '$menuItemsData.price' }
+                    }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                {
+                    $limit: 1
+                },
+                {
+                    $project: {
+                        item: '$_id.item',
+                        category: '$_id.category',
+                        count: 1,
+                        total: { $round: ['$total', 2] },
+                        _id: 0
+                    }
+                }
+            ];
+
+            const result1 = await orderCollection.aggregate(pipeline).toArray();
+            const result2 = await orderCollection.aggregate(pipeline2).toArray();
+            res.send({ orderStates: result1, bestDish: result2 });
+        });
         //All post Api
         //post new user on server
         app.post('/newUser', async (req, res) => {
@@ -171,7 +303,24 @@ async function run() {
         app.post('/addRestaurantStaff/:email', verifyJWT, async (req, res) => {
             const result = await staffCollection.insertOne(req.body);
             res.send(result);
-        })
+        });
+        app.put('/reservationStatus/:email/:id/:table_id', async (req, res) => {
+            const { id, email, table_id } = req.params;
+            const status = req.body.status;
+            const result = await tableWithBookingCollection.updateOne(
+                {
+                    _id: new ObjectId(table_id),
+                    "booking_list": {
+                        $elemMatch: {
+                            "_id": id,
+                            "email": email
+                        }
+                    }
+                },
+                { $set: { "booking_list.$.status": status } }
+            );
+            res.send(result);
+        });
         //All delete action api
         app.delete('/removeCartItem/:email/:id', verifyJWT, async (req, res) => {
             const result = await cartCollection.deleteOne({ _id: new ObjectId(req.params.id) });

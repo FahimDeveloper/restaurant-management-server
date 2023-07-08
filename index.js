@@ -154,12 +154,26 @@ async function run() {
         });
         app.get("/viewOrderInfo/:email/:id", verifyJWT, async (req, res) => {
             const findOrder = await orderCollection.findOne({ _id: new ObjectId(req.params.id) });
-            const query = { _id: { $in: findOrder.orderedItems.map(id => new ObjectId(id)) } }
+            const query = { _id: { $in: findOrder.orderedItems.map(itemId => new ObjectId(itemId.itemId)) } }
             const result = await menuCollection.find(query).toArray();
             res.send(result)
         });
-        app.get('/staffCollection/:email', verifyJWT, async (req, res) => {
+        app.get('/allStaffCollection/:email', verifyJWT, async (req, res) => {
             const result = await staffCollection.find().toArray();
+            res.send(result)
+        })
+        app.get('/staffCollection/:email', verifyJWT, async (req, res) => {
+            const searchText = req.query.searchText;
+            if (searchText === "") {
+                const result = await staffCollection.find().toArray();
+                return res.send(result)
+            }
+            const result = await staffCollection.find({
+                $or: [
+                    { name: { $regex: searchText, $options: 'i' } },
+                    { phone: { $regex: searchText, $options: 'i' } },
+                ]
+            }).toArray();
             res.send(result);
         });
         app.get('/singleStaffInfo/:email/:id', async (req, res) => {
@@ -173,8 +187,8 @@ async function run() {
                         menuItemsObjectIds: {
                             $map: {
                                 input: '$orderedItems',
-                                as: 'itemId',
-                                in: { $toObjectId: '$$itemId' }
+                                as: 'item',
+                                in: { $toObjectId: '$$item.itemId' }
                             }
                         }
                     }
@@ -211,33 +225,33 @@ async function run() {
                     $addFields: {
                         menuItemsObjectIds: {
                             $map: {
-                                input: "$orderedItems",
-                                as: "itemId",
-                                in: { $toObjectId: "$$itemId" }
+                                input: '$orderedItems',
+                                as: 'item',
+                                in: { $toObjectId: '$$item.itemId' }
                             }
                         }
                     }
                 },
                 {
                     $lookup: {
-                        from: "menuCollection",
-                        localField: "menuItemsObjectIds",
-                        foreignField: "_id",
-                        as: "menuItemsData"
+                        from: 'menuCollection',
+                        localField: 'menuItemsObjectIds',
+                        foreignField: '_id',
+                        as: 'menuItemsData'
                     }
                 },
                 {
-                    $unwind: "$menuItemsData"
+                    $unwind: '$menuItemsData'
                 },
                 {
                     $group: {
                         _id: {
-                            item: "$menuItemsData.name",
-                            category: "$menuItemsData.category"
+                            item: '$menuItemsData.name',
+                            category: '$menuItemsData.category'
                         },
                         count: { $sum: 1 },
-                        total: { $sum: "$menuItemsData.price" },
-                        full_dish: { $first: "$menuItemsData" } // Add this line
+                        total: { $sum: '$menuItemsData.price' },
+                        full_dish: { $first: '$menuItemsData' }
                     }
                 },
                 {
@@ -248,19 +262,22 @@ async function run() {
                 },
                 {
                     $project: {
-                        item: "$_id.item",
-                        category: "$_id.category",
+                        item: '$_id.item',
+                        category: '$_id.category',
                         count: 1,
-                        total: { $round: ["$total", 2] },
-                        full_dish: 1, // Include full_dish field
+                        total: { $round: ['$total', 2] },
+                        full_dish: 1,
                         _id: 0
                     }
                 }
             ];
+
             const result1 = await orderCollection.aggregate(pipeline).toArray();
             const result2 = await orderCollection.aggregate(pipeline2).toArray();
+
             res.send({ orderStates: result1, bestDish: result2 });
         });
+
         app.get('/bestDish/:dishId', async (req, res) => {
             const result = await menuCollection.findOne({ _id: new ObjectId(req.params.dishId) })
             res.send(result);
@@ -269,7 +286,16 @@ async function run() {
             const countUsers = await usersCollection.countDocuments();
             const countStaffs = await staffCollection.countDocuments();
             res.send({ countUsers, countStaffs })
-            console.log({ countUsers, countStaffs })
+        });
+        app.get('/searchMenuText', verifyJWT, async (req, res) => {
+            const searchText = req.query.searchText;
+            const result = await menuCollection.find({
+                $or: [
+                    { name: { $regex: searchText, $options: 'i' } },
+                    { category: { $regex: searchText, $options: 'i' } },
+                ]
+            }).sort({ date: -1 }).toArray();
+            res.send(result);
         })
         //All post Api
         //post new user on server
@@ -304,8 +330,34 @@ async function run() {
             }
         });
         app.post('/placedOrder/:email', verifyJWT, async (req, res) => {
-            const result = await orderCollection.insertOne(req.body);
-            res.send(result)
+            const order = req.body;
+            // Retrieve the ordered items from the request body
+            const orderedItems = order.orderedItems;
+            // Iterate over the ordered items
+            for (const item of orderedItems) {
+                const itemId = item.itemId;
+                const quantity = item.quantity;
+
+                // Find the menu item in the menuCollection
+                const menuItem = await menuCollection.findOne({ _id: new ObjectId(itemId) });
+
+                if (menuItem) {
+                    const availableItem = menuItem.available_item;
+
+                    // Calculate the updated available_item value
+                    const updatedAvailableItem = availableItem - quantity;
+
+                    // Update the menu item with the new available_item value
+                    await menuCollection.updateOne(
+                        { _id: new ObjectId(itemId) },
+                        { $set: { available_item: updatedAvailableItem } }
+                    );
+                }
+            }
+            // Insert the order into the orderCollection
+            const result = await orderCollection.insertOne(order);
+            res.send(result);
+
         });
         app.post('/addMenuItem/:email', verifyJWT, async (req, res) => {
             const result = await menuCollection.insertOne(req.body);
@@ -389,23 +441,30 @@ async function run() {
         });
         app.put('/quantityPlus/:email/:id', verifyJWT, async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) }
-            const findItem = await cartCollection.findOne(filter);
-            if (findItem && findItem.quantity === 5) {
-                return res.send('Quantity max')
-            }
-            const options = { upsert: true };
-            const updateDoc = {
-                $set: {
-                    quantity: req.body.quantity + 1
+            const findCartItem = await cartCollection.findOne(filter);
+            if (findCartItem) {
+                const findMenuItem = await menuCollection.findOne({ _id: new ObjectId(findCartItem.menuItemId) });
+                if (findCartItem && findMenuItem && findMenuItem.available_item === findCartItem.quantity) {
+                    return res.send({ finish: "Menu item quantity finish" });
+                } else {
+                    if (findCartItem && findCartItem.quantity === 5) {
+                        return res.send({ max: 'Quantity max' })
+                    }
+                    const options = { upsert: true };
+                    const updateDoc = {
+                        $set: {
+                            quantity: req.body.quantity + 1
+                        }
+                    }
+                    const result = await cartCollection.updateOne(filter, updateDoc, options);
+                    res.send(result);
                 }
             }
-            const result = await cartCollection.updateOne(filter, updateDoc, options);
-            res.send(result);
         });
         app.put('/quantityMinus/:email/:id', verifyJWT, async (req, res) => {
             const filter = { _id: new ObjectId(req.params.id) }
-            const findItem = await cartCollection.findOne(filter);
-            if (findItem && findItem.quantity === 1) {
+            const findCartItem = await cartCollection.findOne(filter);
+            if (findCartItem && findCartItem.quantity === 1) {
                 return res.send('Quantity min')
             }
             const options = { upsert: true };

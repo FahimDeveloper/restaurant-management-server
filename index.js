@@ -164,14 +164,10 @@ async function run() {
         })
         app.get('/staffCollection/:email', verifyJWT, async (req, res) => {
             const searchText = req.query.searchText;
-            if (searchText === "") {
-                const result = await staffCollection.find().toArray();
-                return res.send(result)
-            }
             const result = await staffCollection.find({
                 $or: [
                     { name: { $regex: searchText, $options: 'i' } },
-                    { phone: { $regex: searchText, $options: 'i' } },
+                    { email: { $regex: searchText, $options: 'i' } },
                 ]
             }).toArray();
             res.send(result);
